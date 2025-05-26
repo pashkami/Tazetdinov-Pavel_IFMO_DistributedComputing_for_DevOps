@@ -32,6 +32,7 @@
           - containerd.io
           - python3-pip
           - python3-docker
+
           - python3-pymysql
         state: present
         update_cache: true
@@ -70,19 +71,19 @@
     - name: Копирование master.cnf
       ansible.builtin.template:
         src: "{{ playbook_dir }}/templates/master.cnf"
-        dest: "/tmp/master.cnf"
+        dest: "/opt/master.cnf"
         mode: '0644'
 
     - name: Копирование slave.cnf
       ansible.builtin.template:
         src: "{{ playbook_dir }}/templates/slave.cnf"
-        dest: "/tmp/slave.cnf"
+        dest: "/opt/slave.cnf"
         mode: '0644'
 
     - name: Сгенерировать SQL-файл для мастера
       ansible.builtin.template:
         src: "{{ playbook_dir }}/templates/user_init_master.sql.j2"
-        dest: "/tmp/user_init_master.sql"
+        dest: "/opt/user_init_master.sql"
         mode: '0644'
 
   ## Запуск MySQL Master Порт на хосте: 3307, добавляем и настраиваем стартогого пользователя для репликации, меняем конфиги.
@@ -99,8 +100,8 @@
           MYSQL_PASSWORD: "{{ mysql_password }}"
         volumes:
           - mysql_master_data:/var/lib/mysql
-          - "/tmp/user_init_master.sql:/docker-entrypoint-initdb.d/user_init_master.sql:ro"
-          - "/tmp/master.cnf:/etc/mysql/conf.d/master.cnf:ro"
+          - "/opt/user_init_master.sql:/docker-entrypoint-initdb.d/user_init_master.sql:ro"
+          - "/opt/master.cnf:/etc/mysql/conf.d/master.cnf:ro"
         networks:
           - name: "{{ docker_network }}"
           - name: "{{ cluster_network }}"
@@ -126,7 +127,7 @@
           MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
         volumes:
           - mysql_slave_data:/var/lib/mysql
-          - "/tmp/slave.cnf:/etc/mysql/conf.d/slave.cnf:ro"
+          - "/opt/slave.cnf:/etc/mysql/conf.d/slave.cnf:ro"
         networks:
           - name: "{{ cluster_network }}"
         published_ports:

@@ -1,0 +1,45 @@
+{
+    "title": "System Overview",
+    "uid": "system-overview",
+    "tags": [
+        "linux",
+        "prometheus"
+    ],
+    "timezone": "browser",
+    "panels": [
+        {
+            "title": "CPU Usage",
+            "type": "graph",
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "100 - (avg(irate(node_cpu_seconds_total{mode='idle'}[5m])) * 100",
+                    "legendFormat": "CPU Usage"
+                }
+            ],
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            }
+        },
+        {
+            "title": "Memory Usage",
+            "type": "stat",
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes",
+                    "format": "bytes"
+                }
+            ],
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 12,
+                "y": 0
+            }
+        }
+    ]
+}
