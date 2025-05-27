@@ -10,6 +10,7 @@
 
 
   tasks:
+  
     - name: Создаю volume для Prometheus
       community.docker.docker_volume:
         name: "{{ prometheus_volume }}"
@@ -30,6 +31,7 @@
         path: /etc/grafana/provisioning/datasources
         state: directory
         mode: '0755'
+
     - name: Копирую конфиг Prometheus для Grafana
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/provisioning/datasources/prometheus.yml"
@@ -42,13 +44,6 @@
         dest: "{{ prometheus_config_dir }}/prometheus.yml"
         mode: '0644'
       notify: Перезапуск Prometheus
-
-    # - name: Копирую конфигурацию Grafana
-    #   ansible.builtin.copy:
-    #     src: "{{ playbook_dir }}/provisioning/"
-    #     dest: "/etc/grafana/provisioning/"  # Стандартный путь для Grafana
-    #     mode: '0644'
-    #     directory_mode: '0755'  # Права для директорий
 
     - name: Запускаю Prometheus
       community.docker.docker_container:
@@ -120,7 +115,8 @@
           - "3000:3000"
         volumes:
           - "grafana_data:/var/lib/grafana"
-          - "/etc/grafana/provisioning/:/etc/grafana/provisioning/"
+          # - "/etc/grafana/provisioning/datasources/:/etc/grafana/provisioning/datasources/"
+          # - "/etc/grafana/provisioning/dashboards/:/etc/grafana/provisioning/dashboards/"
 
     - name: Проверка работы Grafana
       ansible.builtin.wait_for:
@@ -130,6 +126,71 @@
         timeout: 60
         state: started
 
+    - name: Create directories
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/provisioning/dashboards"
+        state: directory
+        mode: '0755'
+
+    - name: Скачивание Дашборда
+      ansible.builtin.get_url:
+        url: https://grafana.com/api/dashboards/14282/revisions/latest/download
+        dest: "{{ playbook_dir }}/provisioning/dashboards/cadvisor.json"
+        mode: '0644'
+
+    - name: Read dashboard JSON
+      ansible.builtin.slurp:
+        src: "{{ playbook_dir }}/provisioning/dashboards/cadvisor.json"
+      register: raw_dashboard
+
+
+    - name: Импорт дашборда cAdvisor
+      ansible.builtin.uri:
+        url: "http://{{ ansible_host }}:3000/api/dashboards/import"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Basic {{ ('admin' + ':' + 'admin123') | b64encode }}"
+        body:
+          dashboard: "{{ raw_dashboard.content | b64decode | from_json }}"
+          inputs:  # Добавляем явную привязку переменной
+            - name: "DS_PROMETHEUS"
+              type: "datasource"
+              pluginId: "prometheus"
+              value: "Prometheus"  # Имя источника данных
+          overwrite: true
+        body_format: json
+        status_code: 200
+
+    - name: Скачивание Дашборда node
+      ansible.builtin.get_url:
+        url: https://grafana.com/api/dashboards/1860/revisions/22/download
+        dest: "{{ playbook_dir }}/provisioning/dashboards/Nodeex.json"
+        mode: '0644'
+
+    - name: Read dashboard JSON
+      ansible.builtin.slurp:
+        src: "{{ playbook_dir }}/provisioning/dashboards/Nodeex.json"
+      register: raw_dashboard
+
+
+    - name: Импорт дашборда Nodeex
+      ansible.builtin.uri:
+        url: "http://{{ ansible_host }}:3000/api/dashboards/import"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Basic {{ ('admin' + ':' + 'admin123') | b64encode }}"
+        body:
+          dashboard: "{{ raw_dashboard.content | b64decode | from_json }}"
+          inputs:  # Добавляем явную привязку переменной
+            - name: "DS_PROMETHEUS"
+              type: "datasource"
+              pluginId: "prometheus"
+              value: "Prometheus"  # Имя источника данных
+          overwrite: true
+        body_format: json
+        status_code: 200
 
     - name: Set monitoring URL
       ansible.builtin.set_fact:
