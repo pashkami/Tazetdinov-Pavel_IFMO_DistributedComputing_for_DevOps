@@ -10,7 +10,6 @@
 
 
   tasks:
-  
     - name: Создаю volume для Prometheus
       community.docker.docker_volume:
         name: "{{ prometheus_volume }}"
